@@ -21,9 +21,6 @@ char *prompt_plus = "hello: ";
 char *token;
 char *outfile;
 int i, fd, amper, retid, status;
-int redirect = 0;
-int redirect_stderr = 0;
-int add2file = 0;
 char *argv[10];
 char history[20][1024];
 int last = 0;
@@ -272,6 +269,10 @@ signal (SIGINT,sig_handler);
         else 
             amper = 0;
 
+        int redirect = 0;
+        int redirect_stderr = 0;
+        int add2file = 0;
+
         if (! strcmp(argv[i - 2], ">")) {
             redirect = 1;
             argv[i - 2] = NULL;
@@ -292,6 +293,7 @@ signal (SIGINT,sig_handler);
             redirect_stderr = 0;
             add2file = 0;
         }
+
         /* for commands not part of the shell command language */ 
         if (fork() == 0) { 
             //signal(SIGINT, SIG_DFL);
@@ -311,7 +313,7 @@ signal (SIGINT,sig_handler);
                 /* stderr is now redirected */
             }
             if (add2file) {
-                fd = open(outfile, O_CREAT | O_APPEND | O_WRONLY, 0644);
+                fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0660);
                 close (STDOUT_FILENO) ; 
                 dup(fd);
                 close(fd);
