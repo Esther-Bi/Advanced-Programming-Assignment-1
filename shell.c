@@ -42,14 +42,114 @@ signal (SIGINT,sig_handler);
 
     while (1)
     {
-        // printf("%s: ", prompt);
-        // fgets(command, 1024, stdin);
-        // command[strlen(command) - 1] = '\0';
-        // last++;
-        //last = last%20;
         command = read_command();
-        //strncpy(history[last] , command, 1024);
 
+        if (((strstr(command, " | ") != NULL) && (strstr(command, "if") != NULL) && (strstr(command, "then") != NULL))
+            || ((strstr(command, " | ") != NULL) && (strstr(command, "if") == NULL))) {
+        
+            char **commands = NULL;
+            int command_count = 0;
+            int i;
+            int command_capacity = 0;
+
+            char *token = strtok(command, "|");
+            while (token != NULL) {
+                // Resize commands array if necessary
+                if (command_count >= command_capacity) {
+                    command_capacity += 16;
+                    commands = realloc(commands, command_capacity * sizeof(char*));
+                }
+                commands[command_count++] = strdup(token);
+                token = strtok(NULL, "|");
+            }
+
+            // Add NULL terminator to end of commands array
+            if (command_count >= command_capacity) {
+                command_capacity++;
+                commands = realloc(commands, command_capacity * sizeof(char*));
+            }
+            commands[command_count] = NULL;
+
+            // Execute all commands
+            int fd[2];
+            int last_in = STDIN_FILENO;
+            for (i = 0; i < command_count; i++) {
+                // Split command string into array of arguments
+                char *arg = strtok(commands[i], " ");
+                char **args = malloc(sizeof(char*) * 2);
+                int arg_count = 0;
+                while (arg != NULL) {
+                    args[arg_count++] = arg;
+                    args = realloc(args, sizeof(char*) * (arg_count + 1));
+                    arg = strtok(NULL, " ");
+                }
+                args[arg_count] = NULL;
+
+                // Create pipe
+                if (i != command_count - 1) {
+                    if (pipe(fd) == -1) {
+                        perror("pipe failed");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+                // Execute command
+                pid_t pid = fork();
+                if (pid == 0) {
+                    // Redirect input from previous command (if not first command)
+                    if (last_in != STDIN_FILENO) {
+                        if (dup2(last_in, STDIN_FILENO) == -1) {
+                            perror("dup2 failed");
+                            exit(EXIT_FAILURE);
+                        }
+                        close(last_in);
+                    }
+
+                    // Redirect output to next command (if not last command)
+                    if (i != command_count - 1) {
+                        if (dup2(fd[1], STDOUT_FILENO) == -1) {
+                            perror("dup2 failed");
+                            exit(EXIT_FAILURE);
+                        }
+                        close(fd[1]);
+                    }
+
+                    // Execute command
+                    execvp(args[0], args);
+                    perror("execvp failed");
+                    exit(EXIT_FAILURE);
+                } else {
+                    // Close input of previous command (if not first command)
+                    if (last_in != STDIN_FILENO) {
+                        close(last_in);
+                    }
+
+                    // Close output of this command (if not last command)
+                    if (i != command_count - 1) {
+                        close(fd[1]);
+                    }
+
+                    // Save input for next command (if not last command)
+                    if (i != command_count - 1) {
+                        last_in = fd[0];
+                    }
+
+                    // Wait for command to finish
+                    wait(NULL);
+                }
+
+                // Free memory used by argument array
+                free(args);
+            }
+
+            // Free memory used by input buffer and commands array
+            for (i = 0; i < command_count; i++) {
+                free(commands[i]);
+            }
+            free(commands);
+            continue;
+        }
+        
         /* parse command line */
         i = 0;
         token = strtok (command," ");
@@ -77,13 +177,6 @@ signal (SIGINT,sig_handler);
             }
             argv[i] = NULL;
         }
-
-        // if (! strcmp(argv[0], "hist")){
-        //     for (int i=19 ; i>=0 ; i--){
-        //         printf("%d : %s\n", i, history[i]);
-        //     }
-        //     continue;
-        // }
         
         if ((! strcmp(argv[0], "prompt")) && (argv[1] != NULL) && (! strcmp(argv[1], "=")) && (argv[2] != NULL) && (argv[3] == NULL)){
             prompt = argv[2];
@@ -142,7 +235,35 @@ signal (SIGINT,sig_handler);
             continue;
         }
 
+        if (! strcmp(argv[0], "if")) {
+            
+            char result[1024]= "";
+            char *ch=malloc(sizeof("50"));
+            ch = malloc (50);
+            
+            for(int num =0; num< i; num++){
+                strcat(result, argv[num]);
+                if (num != i-1)
+                    strcat(result, " ");
+            }            
 
+            for(int j=0; j<5; j++){
+
+                if (j==0 || j==2 || j==4){
+                    strcat(result, "; ");
+                }
+                scanf ("%[^\n]%*c", ch);
+                strcat(result, ch);
+                strcat(result, " ");
+
+            }
+            argv[0] = "sh";
+            argv[1] = "-c";
+            argv[2] = strdup(result);
+            argv[3] = NULL;
+            free(ch);
+            i = 3;
+        }
         /* Does command line end with & */ 
         if (! strcmp(argv[i - 1], "&")) {
             amper = 1;
@@ -171,7 +292,6 @@ signal (SIGINT,sig_handler);
             redirect_stderr = 0;
             add2file = 0;
         }
-
         /* for commands not part of the shell command language */ 
         if (fork() == 0) { 
             //signal(SIGINT, SIG_DFL);
