@@ -262,7 +262,7 @@ signal (SIGINT,sig_handler);
             i = 3;
         }
         /* Does command line end with & */ 
-        if (! strcmp(argv[i - 1], "&")) {
+        if ((argv[i - 1]!=NULL) &&(! strcmp(argv[i - 1], "&"))) {
             amper = 1;
             argv[i - 1] = NULL;
         }
@@ -273,17 +273,17 @@ signal (SIGINT,sig_handler);
         int redirect_stderr = 0;
         int add2file = 0;
 
-        if (! strcmp(argv[i - 2], ">")) {
+        if ((argv[i - 2]!=NULL) && (! strcmp(argv[i - 2], ">"))) {
             redirect = 1;
             argv[i - 2] = NULL;
             outfile = argv[i - 1];
             }
-        else if (! strcmp(argv[i - 2], "2>")) {
+        else if ((argv[i - 2]!=NULL) && (! strcmp(argv[i - 2], "2>"))) {
             redirect_stderr = 1;
             argv[i - 2] = NULL;
             outfile = argv[i - 1];
             }
-        else if (! strcmp(argv[i - 2], ">>")) {
+        else if ((argv[i - 2]!=NULL) && (! strcmp(argv[i - 2], ">>"))) {
             add2file = 1;
             argv[i - 2] = NULL;
             outfile = argv[i - 1];
