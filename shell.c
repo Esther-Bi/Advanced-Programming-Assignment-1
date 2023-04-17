@@ -184,7 +184,7 @@ signal (SIGINT,sig_handler);
      
         if (! strcmp(argv[0], "echo")){
             if ((argv[1]!=NULL) && (! strcmp(argv[1], "$?"))){
-                printf("%d ????" , status);
+                printf("%d" , status);
             } else if (argv[1]!=NULL){
                 int i=1;
                 while (argv[i] != NULL) {                                     
